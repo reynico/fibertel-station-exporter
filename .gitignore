@@ -46,3 +46,6 @@ tags
 
 # End of https://www.toptal.com/developers/gitignore/api/vim,go
 vodafone-station-exporter
+
+# IDE files
+.idea
