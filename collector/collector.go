@@ -37,6 +37,7 @@ var (
 	bandwidthOfdmUpstreamDesc        *prometheus.Desc
 	powerOfdmUpstreamDesc            *prometheus.Desc
 	lockedOfdmUpstreamDesc           *prometheus.Desc
+	lockedUpstreamDesc               *prometheus.Desc
 
 	centralFrequencyUpstreamDesc *prometheus.Desc
 	powerUpstreamDesc            *prometheus.Desc
@@ -74,6 +75,7 @@ func init() {
 	centralFrequencyUpstreamDesc = prometheus.NewDesc(prefix+"upstream_central_frequency_hertz", "Central frequency", upstreamLabels, nil)
 	powerUpstreamDesc = prometheus.NewDesc(prefix+"upstream_power_dBmV", "Power", upstreamLabels, nil)
 	rangingStatusUpstreamDesc = prometheus.NewDesc(prefix+"upstream_ranging_status_info", "Ranging status", append(upstreamLabels, "status"), nil)
+	lockedUpstreamDesc = prometheus.NewDesc(prefix+"upstream_locked_bool", "Locking status", upstreamLabels, nil)
 
 	ofdmUpstreamChannelLabels := []string{"id", "channel_id_ofdm", "fft", "channel_type"}
 	startFrequencyOfdmUpstreamDesc = prometheus.NewDesc(prefix+"ofdm_upstream_start_frequency_hertz", "Start frequency", ofdmUpstreamChannelLabels, nil)
@@ -165,7 +167,7 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 			labels := []string{upstreamChannel.Id, upstreamChannel.ChannelIdUp, upstreamChannel.SymbolRate, upstreamChannel.ChannelType}
 			ch <- prometheus.MustNewConstMetric(centralFrequencyUpstreamDesc, prometheus.GaugeValue, parse2float(upstreamChannel.CentralFrequency)*10e9, labels...)
 			ch <- prometheus.MustNewConstMetric(powerUpstreamDesc, prometheus.GaugeValue, parse2float(upstreamChannel.Power), labels...)
-			ch <- prometheus.MustNewConstMetric(rangingStatusUpstreamDesc, prometheus.GaugeValue, 1, append(labels, upstreamChannel.LockStatus)...)
+			ch <- prometheus.MustNewConstMetric(lockedUpstreamDesc, prometheus.GaugeValue, bool2float64(upstreamChannel.Locked == "Locked"), labels...)
 		}
 		for _, ofdmUpstreamChannel := range docsisStatusResponse.Data.OfdmUpstreamData {
 			labels := []string{ofdmUpstreamChannel.Id, ofdmUpstreamChannel.ChannelIdOfdm, ofdmUpstreamChannel.FftOfdm, ofdmUpstreamChannel.ChannelType}

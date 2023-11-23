@@ -112,7 +112,7 @@ type DocsisUpstreamChannel struct {
 	Power            string `json:"PowerLevel"`
 	ChannelType      string `json:"ChannelType"`
 	SymbolRate       string `json:"SymbolRate"`
-	LockStatus       string `json:"LockStatus"`
+	Locked           string `json:"LockStatus"`
 }
 
 func NewFibertelStation(stationUrl, username, password string) *FibertelStation {
