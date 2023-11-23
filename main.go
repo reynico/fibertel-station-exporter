@@ -20,8 +20,9 @@ var (
 	listenAddress           = flag.String("web.listen-address", "[::]:9420", "Address to listen on")
 	metricsPath             = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics")
 	logLevel                = flag.String("log.level", "info", "Logging level")
-	vodafoneStationUrl      = flag.String("vodafone.station-url", "http://192.168.0.1", "Vodafone station URL. For bridge mode this is 192.168.100.1 (note: Configure a route if using bridge mode)")
-	vodafoneStationPassword = flag.String("vodafone.station-password", "How is the default password calculated? mhmm", "Password for logging into the Vodafone station")
+	vodafoneStationUrl      = flag.String("vodafone.station-url", "https://192.168.100.1", "Vodafone station URL. For bridge mode this is 192.168.100.1 (note: Configure a route if using bridge mode)")
+	vodafoneStationUsername = flag.String("vodafone.station-username", "custadmin", "Username for logging into the Vodafone station")
+	vodafoneStationPassword = flag.String("vodafone.station-password", "cga4233", "Password for logging into the Vodafone station")
 )
 
 func main() {
@@ -104,7 +105,7 @@ func startServer() {
 func handleMetricsRequest(w http.ResponseWriter, request *http.Request) {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(&collector.Collector{
-		Station: collector.NewVodafoneStation(*vodafoneStationUrl, *vodafoneStationPassword),
+		Station: collector.NewVodafoneStation(*vodafoneStationUrl, *vodafoneStationUsername, *vodafoneStationPassword),
 	})
 	promhttp.HandlerFor(registry, promhttp.HandlerOpts{
 		ErrorLog:      log.NewErrorLogger(),
