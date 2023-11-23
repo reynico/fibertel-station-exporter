@@ -2,22 +2,27 @@ package collector
 
 import (
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/prometheus/common/log"
 	"golang.org/x/crypto/pbkdf2"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
 
+var csrfToken string
+
 type VodafoneStation struct {
 	URL      string
+	Username string
 	Password string
 	client   *http.Client
 }
@@ -49,144 +54,66 @@ type LogoutResponse struct {
 	Message string `json:"message"`
 }
 
-type DocsisStatusResponse struct {
-	Error   string            `json:"error"`
-	Message string            `json:"message"`
-	Data    *DocsisStatusData `json:"data"`
+type ModemStatusResponse struct {
+	Error   string           `json:"error"`
+	Message string           `json:"message"`
+	Data    *ModemStatusData `json:"data"`
 }
 
-type DocsisStatusData struct {
-	OfdmDownstreamData []*OfdmDownstreamData      `json:"ofdm_downstream"`
-	Downstream         []*DocsisDownstreamChannel `json:"downstream"`
-	Upstream           []*DocsisUpstreamChannel   `json:"upstream"`
+type ModemStatusData struct {
+	OfdmUpstreamData   []*OfdmUpstreamData        `json:"exUSTbl"`
+	OfdmDownstreamData []*OfdmDownstreamData      `json:"exDSTbl"`
+	Downstream         []*DocsisDownstreamChannel `json:"DSTbl"`
+	Upstream           []*DocsisUpstreamChannel   `json:"USTbl"`
 }
 
 type OfdmDownstreamData struct {
 	Id                   string `json:"__id"`
-	ChannelIdOfdm        string `json:"channelid_ofdm"`
-	StartFrequency       string `json:"start_frequency"`
-	EndFrequency         string `json:"end_frequency"`
-	CentralFrequencyOfdm string `json:"CentralFrequency_ofdm"`
-	Bandwidth            string `json:"bandwidth"`
-	PowerOfdm            string `json:"power_ofdm"`
-	SnrOfdm              string `json:"SNR_ofdm"`
-	FftOfdm              string `json:"FFT_ofdm"`
-	LockedOfdm           string `json:"locked_ofdm"`
+	ChannelIdOfdm        string `json:"ChannelID"`
+	StartFrequency       string `json:"StartFrequency"`
+	PLCFrequency         string `json:"PLCFrequency"`
+	CentralFrequencyOfdm string `json:"CentralFrequency"`
+	Bandwidth            string `json:"BandWidth"`
+	PowerOfdm            string `json:"PowerLevel"`
+	SnrOfdm              string `json:"SNRLevel"`
+	FftOfdm              string `json:"FFT"`
+	LockedOfdm           string `json:"LockStatus"`
+	ChannelType          string `json:"ChannelType"`
+}
+
+type OfdmUpstreamData struct {
+	Id                   string `json:"__id"`
+	ChannelIdOfdm        string `json:"ChannelID"`
+	StartFrequency       string `json:"StartFrequency"`
+	PLCFrequency         string `json:"PLCFrequency"`
+	CentralFrequencyOfdm string `json:"CentralFrequency"`
+	Bandwidth            string `json:"BandWidth"`
+	PowerOfdm            string `json:"PowerLevel"`
+	SnrOfdm              string `json:"SNRLevel"`
+	FftOfdm              string `json:"FFT"`
+	LockedOfdm           string `json:"LockStatus"`
 	ChannelType          string `json:"ChannelType"`
 }
 
 type DocsisDownstreamChannel struct {
 	Id               string `json:"__id"`
-	ChannelId        string `json:"channelid"`
-	CentralFrequency string `json:"CentralFrequency"`
-	Power            string `json:"power"`
-	Snr              string `json:"SNR"`
-	Fft              string `json:"FFT"`
-	Locked           string `json:"locked"`
+	ChannelId        string `json:"ChannelID"`
+	CentralFrequency string `json:"Frequency"`
+	Power            string `json:"PowerLevel"`
+	Snr              string `json:"SNRLevel"`
+	Modulation       string `json:"Modulation"`
+	Locked           string `json:"LockStatus"`
 	ChannelType      string `json:"ChannelType"`
 }
 
 type DocsisUpstreamChannel struct {
 	Id               string `json:"__id"`
-	ChannelIdUp      string `json:"channelidup"`
-	CentralFrequency string `json:"CentralFrequency"`
-	Power            string `json:"power"`
+	ChannelIdUp      string `json:"ChannelID"`
+	CentralFrequency string `json:"Frequency"`
+	Power            string `json:"PowerLevel"`
 	ChannelType      string `json:"ChannelType"`
-	Fft              string `json:"FFT"`
-	RangingStatus    string `json:"RangingStatus"`
-}
-
-type StationStatusReponse struct {
-	Error   string             `json:"error"`
-	Message string             `json:"message"`
-	Data    *StationStatusData `json:"data"`
-}
-
-type StationStatusData struct {
-	DateAndTime     string   `json:"dateandtime"`
-	FirewallStatus  string   `json:"firewallstatus"`
-	LanIpv4         string   `json:"lanipv4"`
-	LanMode         string   `json:"LanMode"`
-	LanGateway      string   `json:"langateway"`
-	LanDHCPstatus   string   `json:"lanDHCPstatus"`
-	LanMAC          string   `json:"lanMAC"`
-	LanPortStatus4  string   `json:"lanportstatus_4"`
-	LanPortSpeed4   string   `json:"lanportspeed_4"`
-	LanPortStatus1  string   `json:"lanportstatus_1"`
-	LanPortSpeed1   string   `json:"lanportspeed_1"`
-	LanPortStatus2  string   `json:"lanportstatus_2"`
-	LanPortSpeed2   string   `json:"lanportspeed_2"`
-	LanPortStatus3  string   `json:"lanportstatus_3"`
-	LanPortSpeed3   string   `json:"lanportspeed_3"`
-	WifiStatus      string   `json:"wifistatus"`
-	Channel         string   `json:"channel"`
-	Bandwidth       string   `json:"bandwidth"`
-	MaxSpeed        string   `json:"maxspeed"`
-	Ssid            string   `json:"ssid"`
-	MacAddress      string   `json:"macaddress"`
-	Security        string   `json:"security"`
-	WifiStatus5     string   `json:"wifistatus_5"`
-	Channel5        string   `json:"channel_5"`
-	Bandwidth5      string   `json:"bandwidth_5"`
-	MaxSpeed5       string   `json:"maxspeed_5"`
-	Ssid5           string   `json:"ssid_5"`
-	MacAddress5     string   `json:"macaddress_5"`
-	Security5       string   `json:"security_5"`
-	DnsEntries      string   `json:"DnsEntries"`
-	AFTR            string   `json:"AFTR"`
-	Serialnumber    string   `json:"serialnumber"`
-	FirmwareVersion string   `json:"firmwareversion"`
-	HardwareType    string   `json:"hardwaretype"`
-	Uptime          string   `json:"uptime"`
-	InternetIpv4    string   `json:"internetipv4"`
-	DnsTbl          []string `json:"Dns_Tbl"`
-	DelegatedPrefix string   `json:"DelegatedPrefix"`
-	DNSTblRT        []string `json:"DNSTblRT"`
-	IPAddressRT     []string `json:"IPAddressRT"`
-	IpPrefixClass   string   `json:"IpPrefixClass"`
-}
-
-type CallLog struct {
-	Lines map[string]*PhoneNumberCallLog
-	Line0 *PhoneNumberCallLog `json:"0"`
-	Line1 *PhoneNumberCallLog `json:"1"`
-	Token string              `json:"token"`
-}
-
-type PhoneNumberCallLog struct {
-	Error   string       `json:"error"`
-	Message string       `json:"message"`
-	Data    *CallLogData `json:"data"`
-}
-
-type CallLogData struct {
-	Entries []*CallLogEntry `json:"CallTbl"`
-}
-
-type CallLogEntry struct {
-	Id             string `json:"__id"`
-	EndTime        string `json:"endTime"`
-	StartTime      string `json:"startTime"`
-	ExternalNumber string `json:"externalNumber"`
-	Direction      string `json:"Direction"`
-	Type           string `json:"type"`
-}
-
-type LedSettingResponse struct {
-	Error   string   `json:"error"`
-	Message string   `json:"message"`
-	Data    *LedData `json:"data"`
-	Token   string   `json:"token"`
-}
-
-type LedData struct {
-	Led string `json:"led"`
-}
-
-type StationAboutResponse struct {
-	Error   string            `json:"error"`
-	Message string            `json:"message"`
-	Data    *StationAboutData `json:"data"`
+	SymbolRate       string `json:"SymbolRate"`
+	LockStatus       string `json:"LockStatus"`
 }
 
 type StationAboutData struct {
@@ -199,28 +126,14 @@ type SoftwareInfo struct {
 	License string `json:"license"`
 }
 
-type PhonenumbersResponse struct {
-	Error   string            `json:"error"`
-	Message string            `json:"message"`
-	Data    *PhonenumbersData `json:"data"`
-}
-
-type PhonenumbersData struct {
-	LineNumber1      string `json:"LineNumber1"`
-	Callnumber1      string `json:"callnumber1"`
-	LineStatus1      string `json:"LineStatus1"`
-	AdditionalInfos1 string `json:"AdditionalInfos1"`
-	LineNumber2      string `json:"LineNumber2"`
-	Callnumber2      string `json:"callnumber2"`
-	LineStatus2      string `json:"LineStatus2"`
-	AdditionalInfos2 string `json:"AdditionalInfos2"`
-}
-
-func NewVodafoneStation(stationUrl, password string) *VodafoneStation {
+func NewVodafoneStation(stationUrl, username, password string) *VodafoneStation {
 	cookieJar, err := cookiejar.New(nil)
 	parsedUrl, err := url.Parse(stationUrl)
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
 	cookieJar.SetCookies(parsedUrl, []*http.Cookie{
-		&http.Cookie{
+		{
 			Name:  "Cwd",
 			Value: "No",
 		},
@@ -231,9 +144,11 @@ func NewVodafoneStation(stationUrl, password string) *VodafoneStation {
 	return &VodafoneStation{
 		URL:      stationUrl,
 		Password: password,
+		Username: username,
 		client: &http.Client{
-			Jar:     cookieJar,
-			Timeout: time.Second * 20, // getting DOCSIS status can be slow!
+			Jar:       cookieJar,
+			Timeout:   time.Second * 20, // getting DOCSIS status can be slow!
+			Transport: tr,
 		},
 	}
 }
@@ -247,16 +162,30 @@ func (v *VodafoneStation) Login() (*LoginResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	derivedPassword := GetLoginPassword(v.Password, loginResponseSalts.Salt, loginResponseSalts.SaltWebUI)
-	responseBody, err := v.doRequest("POST", v.URL+"/api/v1/session/login", "username=admin&password="+derivedPassword)
+	data := url.Values{}
+	data.Set("username", v.Username)
+	data.Set("password", derivedPassword)
+
+	responseBody, err := v.doRequest("POST", v.URL+"/api/v1/session/login", data.Encode())
 	if err != nil {
 		return nil, err
 	}
 	loginResponse := &LoginResponse{}
 	err = json.Unmarshal(responseBody, loginResponse)
 	if loginResponse.Error != "ok" {
-		return nil, fmt.Errorf("Got non error=ok message from vodafone station")
+		return nil, fmt.Errorf("got non error=ok message from vodafone station")
 	}
+
+	// This is a dummy request, somehow this is required in order to make the posterior GETs
+	responseMenu, err := v.doRequest("GET", v.URL+"/api/v1/session/menu", "")
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debugf("Response menu: %s\n", responseMenu)
+
 	return loginResponse, nil
 }
 
@@ -276,63 +205,14 @@ func (v *VodafoneStation) Logout() (*LogoutResponse, error) {
 	return logoutResponse, nil
 }
 
-func (v *VodafoneStation) GetDocsisStatus() (*DocsisStatusResponse, error) {
-	responseBody, err := v.doRequest("GET", v.URL+"/api/v1/sta_docsis_status?_="+strconv.FormatInt(makeTimestamp(), 10), "")
+func (v *VodafoneStation) GetModemStatus() (*ModemStatusResponse, error) {
+	responseBody, err := v.doRequest("GET", v.URL+"/api/v1/modem/exUSTbl,exDSTbl,USTbl,DSTbl?_="+strconv.FormatInt(makeTimestamp(), 10), "")
 	if err != nil {
 		return nil, err
 	}
-	docsisStatusResponse := &DocsisStatusResponse{}
-	return docsisStatusResponse, json.Unmarshal(responseBody, docsisStatusResponse)
-}
-
-func (v *VodafoneStation) GetStationStatus() (*StationStatusReponse, error) {
-	responseBody, err := v.doRequest("GET", v.URL+"/api/v1/sta_status?_="+strconv.FormatInt(makeTimestamp(), 10), "")
-	if err != nil {
-		return nil, err
-	}
-	stationStatusReponse := &StationStatusReponse{}
-	return stationStatusReponse, json.Unmarshal(responseBody, stationStatusReponse)
-}
-
-func (v *VodafoneStation) GetCallLog() (*CallLog, error) {
-	responseBody, err := v.doRequest("GET", v.URL+"/api/v1/phone_calllog/1,2/CallTbl?_="+strconv.FormatInt(makeTimestamp(), 10), "")
-	if err != nil {
-		return nil, err
-	}
-	callLog := &CallLog{}
-	err = json.Unmarshal(responseBody, callLog)
-	if err != nil {
-		return nil, err
-	}
-	callLog.Lines = map[string]*PhoneNumberCallLog{"0": callLog.Line0, "1": callLog.Line1}
-	return callLog, nil
-}
-
-func (v *VodafoneStation) GetLedSetting() (*LedSettingResponse, error) {
-	responseBody, err := v.doRequest("GET", v.URL+"/api/v1/set_led?_="+strconv.FormatInt(makeTimestamp(), 10), "")
-	if err != nil {
-		return nil, err
-	}
-	ledSettingResponse := &LedSettingResponse{}
-	return ledSettingResponse, json.Unmarshal(responseBody, ledSettingResponse)
-}
-
-func (v *VodafoneStation) GetStationAbout() (*StationAboutResponse, error) {
-	responseBody, err := v.doRequest("GET", v.URL+"/api/v1/sta_about?_="+strconv.FormatInt(makeTimestamp(), 10), "")
-	if err != nil {
-		return nil, err
-	}
-	stationAboutResponse := &StationAboutResponse{}
-	return stationAboutResponse, json.Unmarshal(responseBody, stationAboutResponse)
-}
-
-func (v *VodafoneStation) GetPhonenumbers() (*PhonenumbersResponse, error) {
-	responseBody, err := v.doRequest("GET", v.URL+"/api/v1/pho_phone_numbers?_="+strconv.FormatInt(makeTimestamp(), 10), "")
-	if err != nil {
-		return nil, err
-	}
-	phonenumbersResponse := &PhonenumbersResponse{}
-	return phonenumbersResponse, json.Unmarshal(responseBody, phonenumbersResponse)
+	fmt.Printf("Docsis response body: %s\n", responseBody)
+	modemStatusResponse := &ModemStatusResponse{}
+	return modemStatusResponse, json.Unmarshal(responseBody, modemStatusResponse)
 }
 
 func makeTimestamp() int64 {
@@ -340,7 +220,11 @@ func makeTimestamp() int64 {
 }
 
 func (v *VodafoneStation) getLoginSalts() (*LoginResponseSalts, error) {
-	responseBody, err := v.doRequest("POST", v.URL+"/api/v1/session/login", "username=admin&password=seeksalthash&logout=true")
+	data := url.Values{}
+	data.Set("username", v.Username)
+	data.Set("password", "seeksalthash")
+	data.Set("logout", "true")
+	responseBody, err := v.doRequest("POST", v.URL+"/api/v1/session/login", data.Encode())
 	if err != nil {
 		return nil, err
 	}
@@ -356,28 +240,33 @@ func (v *VodafoneStation) getLoginSalts() (*LoginResponseSalts, error) {
 }
 
 func (v *VodafoneStation) doRequest(method, url, body string) ([]byte, error) {
-	logger := log.With("method", method).With("url", url)
-	logger.Debug("Performing request")
 	requestBody := strings.NewReader(body)
 	request, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
-		logger.With("error", err.Error).Error("Creating request failed")
+		log.Errorf("error building request: %s", err.Error())
 		return nil, err
 	}
 	if method == "POST" {
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
 	}
-	request.Header.Set("Referer", "http://192.168.100.1")
+	request.Header.Set("Referer", "http://192.168.0.1")
 	request.Header.Set("X-Requested-With", "XMLHttpRequest")
+	request.Header.Set("X-Csrf-Token", csrfToken)
 	response, err := v.client.Do(request)
 	if err != nil {
-		logger.With("error", err.Error).Error("Performing request failed")
+		log.Errorf("error performing request: %s", err.Error())
 		return nil, err
 	}
 	if response.Body != nil {
 		defer response.Body.Close()
 	}
-	return ioutil.ReadAll(response.Body)
+	csrfTokenRegex := regexp.MustCompile(`auth=([^;]+)`)
+	csrfTokenMatches := csrfTokenRegex.FindStringSubmatch(response.Header.Get("Set-Cookie"))
+	if len(csrfTokenMatches) >= 2 {
+		csrfToken = csrfTokenMatches[1]
+	}
+
+	return io.ReadAll(response.Body)
 }
 
 // GetLoginPassword derives the password using the given salts
