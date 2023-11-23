@@ -21,8 +21,8 @@ var (
 	metricsPath             = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics")
 	logLevel                = flag.String("log.level", "info", "Logging level")
 	fibertelStationUrl      = flag.String("fibertel.station-url", "https://192.168.100.1", "Fibertel station URL. For bridge mode this is 192.168.100.1 (note: Configure a route if using bridge mode)")
-	fibertelStationUsername = flag.String("fibertel.station-username", "custadmin", "Username for logging into the Fibertel station")
-	fibertelStationPassword = flag.String("fibertel.station-password", "cga4233", "Password for logging into the Fibertel station")
+	fibertelStationUsername = flag.String("fibertel.station-username", "custadmin", "Username for login into the Fibertel gateway")
+	fibertelStationPassword = flag.String("fibertel.station-password", "cga4233", "Password for login into the Fibertel gateway")
 )
 
 func main() {
@@ -41,8 +41,8 @@ func main() {
 	if *showVersion {
 		fmt.Println("fibertel-station-exporter")
 		fmt.Printf("Version: %s\n", version)
-		fmt.Println("Author: @fluepke")
-		fmt.Println("Prometheus Exporter for the Fibertel Station (CGA4233DE)")
+		fmt.Println("Author: @fluepke, @reynico")
+		fmt.Println("Prometheus Exporter for the Fibertel gateway (CGA4233TCH3)")
 		os.Exit(0)
 	}
 
@@ -50,7 +50,6 @@ func main() {
 }
 
 func describeMetrics() {
-	fmt.Println("Exported metrics")
 	c := &collector.Collector{}
 	ch := make(chan *prometheus.Desc)
 	go func() {

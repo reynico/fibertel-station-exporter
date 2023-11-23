@@ -115,16 +115,6 @@ type DocsisUpstreamChannel struct {
 	LockStatus       string `json:"LockStatus"`
 }
 
-type StationAboutData struct {
-	Software []*SoftwareInfo `json:"cosp"`
-}
-
-type SoftwareInfo struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-	License string `json:"license"`
-}
-
 func NewFibertelStation(stationUrl, username, password string) *FibertelStation {
 	cookieJar, err := cookiejar.New(nil)
 	parsedUrl, err := url.Parse(stationUrl)
@@ -273,7 +263,6 @@ func GetLoginPassword(password, salt, saltWebUI string) string {
 	return DoPbkdf2NotCoded(DoPbkdf2NotCoded(password, salt), saltWebUI)
 }
 
-// Equivalent to the JS doPbkdf2NotCoded (see README.md)
 func DoPbkdf2NotCoded(key, salt string) string {
 	temp := pbkdf2.Key([]byte(key), []byte(salt), 0x3e8, 0x80, sha256.New)
 	return hex.EncodeToString(temp[:16])
