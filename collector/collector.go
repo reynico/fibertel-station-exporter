@@ -8,7 +8,7 @@ import (
 )
 
 type Collector struct {
-	Station *VodafoneStation
+	Station *FibertelStation
 }
 
 var (
@@ -46,7 +46,7 @@ var (
 	logoutMessageDesc *prometheus.Desc
 )
 
-const prefix = "vodafone_station_"
+const prefix = "fibertel_"
 
 func init() {
 	loginSuccessDesc = prometheus.NewDesc(prefix+"login_success_bool", "1 if the login was successfull", nil, nil)

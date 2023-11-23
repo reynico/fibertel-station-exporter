@@ -1,7 +1,7 @@
 package collector_test
 
 import (
-	"github.com/fluepke/vodafone-station-exporter/collector"
+	"github.com/reynico/fibertel-station-exporter/collector"
 	"testing"
 )
 

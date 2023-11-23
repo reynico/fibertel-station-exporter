@@ -20,7 +20,7 @@ import (
 
 var csrfToken string
 
-type VodafoneStation struct {
+type FibertelStation struct {
 	URL      string
 	Username string
 	Password string
@@ -125,7 +125,7 @@ type SoftwareInfo struct {
 	License string `json:"license"`
 }
 
-func NewVodafoneStation(stationUrl, username, password string) *VodafoneStation {
+func NewFibertelStation(stationUrl, username, password string) *FibertelStation {
 	cookieJar, err := cookiejar.New(nil)
 	parsedUrl, err := url.Parse(stationUrl)
 	tr := &http.Transport{
@@ -140,7 +140,7 @@ func NewVodafoneStation(stationUrl, username, password string) *VodafoneStation 
 	if err != nil {
 		panic(err)
 	}
-	return &VodafoneStation{
+	return &FibertelStation{
 		URL:      stationUrl,
 		Password: password,
 		Username: username,
@@ -152,7 +152,7 @@ func NewVodafoneStation(stationUrl, username, password string) *VodafoneStation 
 	}
 }
 
-func (v *VodafoneStation) Login() (*LoginResponse, error) {
+func (v *FibertelStation) Login() (*LoginResponse, error) {
 	_, err := v.doRequest("GET", v.URL, "")
 	if err != nil {
 		return nil, err
@@ -174,7 +174,7 @@ func (v *VodafoneStation) Login() (*LoginResponse, error) {
 	loginResponse := &LoginResponse{}
 	err = json.Unmarshal(responseBody, loginResponse)
 	if loginResponse.Error != "ok" {
-		return nil, fmt.Errorf("got non error=ok message from vodafone station")
+		return nil, fmt.Errorf("got non error=ok message from fibertel station")
 	}
 
 	// This is a dummy request, somehow this is required in order to make the posterior GETs
@@ -188,7 +188,7 @@ func (v *VodafoneStation) Login() (*LoginResponse, error) {
 	return loginResponse, nil
 }
 
-func (v *VodafoneStation) Logout() (*LogoutResponse, error) {
+func (v *FibertelStation) Logout() (*LogoutResponse, error) {
 	responseBody, err := v.doRequest("POST", v.URL+"/api/v1/session/logout", "")
 	if err != nil {
 		return nil, err
@@ -199,17 +199,17 @@ func (v *VodafoneStation) Logout() (*LogoutResponse, error) {
 		return nil, err
 	}
 	if logoutResponse.Error != "ok" {
-		return nil, fmt.Errorf("Got non error=ok message from vodafone station")
+		return nil, fmt.Errorf("Got non error=ok message from fibertel station")
 	}
 	return logoutResponse, nil
 }
 
-func (v *VodafoneStation) GetModemStatus() (*ModemStatusResponse, error) {
+func (v *FibertelStation) GetModemStatus() (*ModemStatusResponse, error) {
 	responseBody, err := v.doRequest("GET", v.URL+"/api/v1/modem/exUSTbl,exDSTbl,USTbl,DSTbl?_="+strconv.FormatInt(makeTimestamp(), 10), "")
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("Docsis response body: %s\n", responseBody)
+	log.Debugf("Docsis response body: %s\n", responseBody)
 	modemStatusResponse := &ModemStatusResponse{}
 	return modemStatusResponse, json.Unmarshal(responseBody, modemStatusResponse)
 }
@@ -218,7 +218,7 @@ func makeTimestamp() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
 }
 
-func (v *VodafoneStation) getLoginSalts() (*LoginResponseSalts, error) {
+func (v *FibertelStation) getLoginSalts() (*LoginResponseSalts, error) {
 	data := url.Values{}
 	data.Set("username", v.Username)
 	data.Set("password", "seeksalthash")
@@ -233,12 +233,12 @@ func (v *VodafoneStation) getLoginSalts() (*LoginResponseSalts, error) {
 		return nil, err
 	}
 	if loginResponseSalts.Error != "ok" {
-		return nil, fmt.Errorf("Got non error=ok message from vodafone station")
+		return nil, fmt.Errorf("Got non error=ok message from fibertel station")
 	}
 	return loginResponseSalts, nil
 }
 
-func (v *VodafoneStation) doRequest(method, url, body string) ([]byte, error) {
+func (v *FibertelStation) doRequest(method, url, body string) ([]byte, error) {
 	requestBody := strings.NewReader(body)
 	request, err := http.NewRequest(method, url, requestBody)
 	if err != nil {

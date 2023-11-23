@@ -3,10 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/fluepke/vodafone-station-exporter/collector"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
+	"github.com/reynico/fibertel-station-exporter/collector"
 	"net/http"
 	"os"
 	"reflect"
@@ -19,10 +19,10 @@ var (
 	showMetrics             = flag.Bool("show-metrics", false, "Show available metrics and exit")
 	listenAddress           = flag.String("web.listen-address", "[::]:9420", "Address to listen on")
 	metricsPath             = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics")
-	logLevel                = flag.String("log.level", "debug", "Logging level")
-	vodafoneStationUrl      = flag.String("vodafone.station-url", "https://192.168.100.1", "Vodafone station URL. For bridge mode this is 192.168.100.1 (note: Configure a route if using bridge mode)")
-	vodafoneStationUsername = flag.String("vodafone.station-username", "custadmin", "Username for logging into the Vodafone station")
-	vodafoneStationPassword = flag.String("vodafone.station-password", "cga4233", "Password for logging into the Vodafone station")
+	logLevel                = flag.String("log.level", "info", "Logging level")
+	fibertelStationUrl      = flag.String("fibertel.station-url", "https://192.168.100.1", "Fibertel station URL. For bridge mode this is 192.168.100.1 (note: Configure a route if using bridge mode)")
+	fibertelStationUsername = flag.String("fibertel.station-username", "custadmin", "Username for logging into the Fibertel station")
+	fibertelStationPassword = flag.String("fibertel.station-password", "cga4233", "Password for logging into the Fibertel station")
 )
 
 func main() {
@@ -39,10 +39,10 @@ func main() {
 	}
 
 	if *showVersion {
-		fmt.Println("vodafone-station-exporter")
+		fmt.Println("fibertel-station-exporter")
 		fmt.Printf("Version: %s\n", version)
 		fmt.Println("Author: @fluepke")
-		fmt.Println("Prometheus Exporter for the Vodafone Station (CGA4233DE)")
+		fmt.Println("Prometheus Exporter for the Fibertel Station (CGA4233DE)")
 		os.Exit(0)
 	}
 
@@ -86,12 +86,12 @@ func describeMetric(desc *prometheus.Desc) {
 }
 
 func startServer() {
-	log.Infof("Starting vodafone-station-exporter (version %s)", version)
+	log.Infof("Starting fibertel-station-exporter (version %s)", version)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
-            <head><title>vodafone-station-exporter (Version ` + version + `)</title></head>
+            <head><title>fibertel-station-exporter (Version ` + version + `)</title></head>
             <body>
-            <h1>vodafone-station-exporter</h1>
+            <h1>fibertel-station-exporter</h1>
             <a href="/metrics">metrics</a>
             </body>
             </html>`))
@@ -105,7 +105,7 @@ func startServer() {
 func handleMetricsRequest(w http.ResponseWriter, request *http.Request) {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(&collector.Collector{
-		Station: collector.NewVodafoneStation(*vodafoneStationUrl, *vodafoneStationUsername, *vodafoneStationPassword),
+		Station: collector.NewFibertelStation(*fibertelStationUrl, *fibertelStationUsername, *fibertelStationPassword),
 	})
 	promhttp.HandlerFor(registry, promhttp.HandlerOpts{
 		ErrorLog:      log.NewErrorLogger(),
