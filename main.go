@@ -19,7 +19,7 @@ var (
 	showMetrics             = flag.Bool("show-metrics", false, "Show available metrics and exit")
 	listenAddress           = flag.String("web.listen-address", "[::]:9420", "Address to listen on")
 	metricsPath             = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics")
-	logLevel                = flag.String("log.level", "info", "Logging level")
+	logLevel                = flag.String("log.level", "debug", "Logging level")
 	vodafoneStationUrl      = flag.String("vodafone.station-url", "https://192.168.100.1", "Vodafone station URL. For bridge mode this is 192.168.100.1 (note: Configure a route if using bridge mode)")
 	vodafoneStationUsername = flag.String("vodafone.station-username", "custadmin", "Username for logging into the Vodafone station")
 	vodafoneStationPassword = flag.String("vodafone.station-password", "cga4233", "Password for logging into the Vodafone station")

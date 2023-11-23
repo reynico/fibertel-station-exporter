@@ -89,7 +89,6 @@ type OfdmUpstreamData struct {
 	CentralFrequencyOfdm string `json:"CentralFrequency"`
 	Bandwidth            string `json:"BandWidth"`
 	PowerOfdm            string `json:"PowerLevel"`
-	SnrOfdm              string `json:"SNRLevel"`
 	FftOfdm              string `json:"FFT"`
 	LockedOfdm           string `json:"LockStatus"`
 	ChannelType          string `json:"ChannelType"`
