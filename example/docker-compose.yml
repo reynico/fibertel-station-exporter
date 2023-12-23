@@ -1,0 +1,25 @@
+version: "3.7"
+services:
+  prometheus:
+    image: prom/prometheus
+    command: --config.file=/prometheus-data/prometheus.yml
+    ports:
+      - 9090:9090
+    volumes:
+      - ./:/prometheus-data
+  
+  grafana:
+    image: grafana/grafana
+    ports:
+      - 3000:3000
+    links:
+      - prometheus
+    volumes:
+      - ./grafana/:/etc/grafana/
+
+  fibertel-station-exporter:
+    build: ../.
+    ports:
+      - 9420:9420
+    links:
+      - prometheus
