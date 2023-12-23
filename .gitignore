@@ -49,3 +49,6 @@ vodafone-station-exporter
 
 # IDE files
 .idea
+
+# Binaries
+fibertel-station-exporter
